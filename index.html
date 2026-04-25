@@ -133,6 +133,13 @@ html,body{height:100%;background:var(--bg);color:var(--primary);font-family:-app
 .outfit-items-list{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:10px}
 .outfit-why{font-size:14px;color:var(--primary);line-height:1.6;padding-top:10px;border-top:1px solid var(--border)}
 
+/* ===== COLOR SWATCHES ===== */
+.color-grid{display:flex;flex-wrap:wrap;gap:10px}
+.color-swatch{width:32px;height:32px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s,border-color .15s;flex-shrink:0;position:relative}
+.color-swatch.on{border-color:var(--primary)!important;transform:scale(1.18)}
+.color-swatch.on::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.color-swatch.light-border{border-color:var(--border)}
+
 /* ===== SHOP ===== */
 .shop-wrap{padding:16px}
 .shop-header{background:var(--surface);border-radius:20px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:16px}
@@ -342,7 +349,7 @@ html,body{height:100%;background:var(--bg);color:var(--primary);font-family:-app
 <script>
 /* ===================== CONFIG ===================== */
 const GEMINI_KEY  = 'AIzaSyBmzJxad566i5epLJfL0aWg1N4prXgPQZ4';
-const GEMINI_URL  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_URL  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`;
 const REDIRECT_URI    = location.origin + location.pathname.replace(/\/?$/, '/');
 const DROPBOX_APP_KEY = '2zraey09dekbvln';
 
@@ -462,10 +469,18 @@ async function getItemImage(item) {
   return null;
 }
 
-const CATEGORIES = ['All','Tops','Bottoms','Dresses & Jumpsuits','Outerwear','Shoes','Bags','Accessories','Activewear','Other'];
+const CATEGORIES = ['All','Shirts','Sweaters','Blazers','Pants','Skirts','Dresses','Outerwear','Bags','Accessories','Activewear','Other'];
 const SEASONS    = ['Spring','Summer','Fall','Winter','All Season'];
-const STYLES     = ['Casual','Professional','Smart Casual','Formal','Athletic','Boho','Streetwear','Evening','Beach'];
+const STYLES     = ['Casual','Smart Casual','Professional','Athletic','Formal','Beach'];
 const MOODS      = ['Casual brunch','Job interview','Date night','Weekend errands','Work meeting','Gym day','Beach day','Girls night'];
+const COLORS     = [
+  {name:'Black',hex:'#1C1C1E'},{name:'White',hex:'#F5F5F5',border:true},{name:'Grey',hex:'#8E8E93'},
+  {name:'Beige',hex:'#C8B89A'},{name:'Brown',hex:'#795548'},{name:'Navy',hex:'#1A237E'},
+  {name:'Blue',hex:'#1976D2'},{name:'Light Blue',hex:'#81D4FA',border:true},{name:'Red',hex:'#D32F2F'},
+  {name:'Pink',hex:'#F48FB1',border:true},{name:'Purple',hex:'#7B1FA2'},{name:'Green',hex:'#388E3C'},
+  {name:'Olive',hex:'#827717'},{name:'Yellow',hex:'#FBC02D',border:true},{name:'Orange',hex:'#F57C00'},
+  {name:'Gold',hex:'#FFD54F',border:true},{name:'Multicolor',hex:'conic-gradient(red,yellow,green,blue,purple,red)'},
+];
 
 /* ===================== INDEXEDDB ===================== */
 let idb;
@@ -535,17 +550,34 @@ function parseJson(txt) {
   return JSON.parse(txt.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim());
 }
 
+async function scaleForAI(b64, mime) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1024;
+      let w = img.width, h = img.height;
+      if (Math.max(w,h) > MAX) { if (w>h) { h=h*MAX/w; w=MAX; } else { w=w*MAX/h; h=MAX; } }
+      const c = document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      const d = c.toDataURL('image/jpeg',0.85);
+      res({ b64: d.split(',')[1], mime:'image/jpeg' });
+    };
+    img.src = `data:${mime};base64,${b64}`;
+  });
+}
+
 async function aiTagItem(b64, mime) {
+  const scaled = await scaleForAI(b64, mime);
   const txt = await callGemini(
-    `Analyze this clothing item and return ONLY valid JSON with this exact structure (no markdown):
+    `Analyze this clothing item photo and return ONLY valid JSON (no markdown, no extra text):
 {
-  "type": "specific item name e.g. Navy Blazer, White Linen Shirt, Midi Skirt",
-  "category": "one of: Tops, Bottoms, Dresses & Jumpsuits, Outerwear, Shoes, Bags, Accessories, Activewear, Other",
-  "colors": ["primary color","secondary color if any"],
+  "type": "descriptive item name e.g. Navy Blazer, White Linen Shirt, Midi Skirt, Chunky Knit Sweater",
+  "category": "one of: Shirts, Sweaters, Blazers, Pants, Skirts, Dresses, Outerwear, Bags, Accessories, Activewear, Other",
+  "colors": ["pick from: Black, White, Grey, Beige, Brown, Navy, Blue, Light Blue, Red, Pink, Purple, Green, Olive, Yellow, Orange, Gold, Multicolor"],
   "season": ["one or more of: Spring, Summer, Fall, Winter, All Season"],
-  "style": ["one or more of: Casual, Professional, Smart Casual, Formal, Athletic, Boho, Streetwear, Evening, Beach"],
+  "style": ["one or more of: Casual, Smart Casual, Professional, Athletic, Formal, Beach"],
   "description": "one sentence describing the item"
-}`, b64, mime);
+}`, scaled.b64, scaled.mime);
   return parseJson(txt);
 }
 
@@ -638,19 +670,32 @@ async function renderWardrobe() {
 
 /* ===================== ADD SCREEN ===================== */
 let addBlob=null, addB64=null, addMime=null, originalBlob=null;
-let addData = { type:'', category:'', colors:[], season:[], style:[], description:'', notes:'' };
+let addData = { type:'', category:'', colors:[], season:[], style:[], brand:'', size:'', notes:'' };
 
 function buildAddForm() {
+  const colorSwatches = COLORS.map(c =>
+    `<button class="color-swatch${c.border?' light-border':''}" data-color="${c.name}" title="${c.name}" onclick="toggleColor('${c.name}',this)" style="background:${c.hex}"></button>`
+  ).join('');
   document.getElementById('add-form').innerHTML = `
     <div class="form-section">
       <div class="form-section-title">Item Details</div>
-      <div class="form-group"><label class="form-label">Type</label><input class="form-input" id="f-type" placeholder="e.g. Navy Blazer, White T-Shirt" oninput="addData.type=this.value"></div>
+      <div class="form-group"><label class="form-label">Item name</label><input class="form-input" id="f-type" placeholder="e.g. Navy Blazer, White Linen Shirt" oninput="addData.type=this.value"></div>
       <div class="form-group"><label class="form-label">Category</label><div class="chip-group" id="cat-chips">${CATEGORIES.filter(c=>c!=='All').map(c=>`<button class="chip" data-cat="${c}" onclick="pickCat('${c}',this)">${c}</button>`).join('')}</div></div>
+      <div class="form-group"><label class="form-label">Colour</label><div class="color-grid" id="color-grid">${colorSwatches}</div></div>
       <div class="form-group"><label class="form-label">Season</label><div class="chip-group">${SEASONS.map(s=>`<button class="chip" onclick="toggleArr('season','${s}',this)">${s}</button>`).join('')}</div></div>
       <div class="form-group"><label class="form-label">Style</label><div class="chip-group">${STYLES.map(s=>`<button class="chip" onclick="toggleArr('style','${s}',this)">${s}</button>`).join('')}</div></div>
-      <div class="form-group"><label class="form-label">Colors</label><input class="form-input" id="f-colors" placeholder="e.g. navy, white, beige" oninput="addData.colors=this.value.split(',').map(s=>s.trim()).filter(Boolean)"></div>
-      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea class="form-input" id="f-notes" placeholder="Brand, size, where you bought it..." rows="2" style="resize:none" oninput="addData.notes=this.value"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Brand <span style="font-weight:400;opacity:.55">(optional)</span></label><input class="form-input" id="f-brand" placeholder="e.g. Zara, COS" oninput="addData.brand=this.value"></div>
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Size <span style="font-weight:400;opacity:.55">(optional)</span></label><input class="form-input" id="f-size" placeholder="e.g. S, M, 10" oninput="addData.size=this.value"></div>
+      </div>
+      <div class="form-group" style="margin-top:16px"><label class="form-label">Notes <span style="font-weight:400;opacity:.55">(optional)</span></label><textarea class="form-input" id="f-notes" placeholder="Where you bought it, how it fits..." rows="2" style="resize:none" oninput="addData.notes=this.value"></textarea></div>
     </div>`;
+}
+
+function toggleColor(name, btn) {
+  btn.classList.toggle('on');
+  const idx = addData.colors.indexOf(name);
+  idx >= 0 ? addData.colors.splice(idx,1) : addData.colors.push(name);
 }
 
 function pickCat(c, btn) {
@@ -820,13 +865,40 @@ async function runAiTag() {
   try {
     const tags = await aiTagItem(addB64, addMime);
     addData = { ...addData, ...tags };
-    if (tags.type)   document.getElementById('f-type').value = tags.type;
-    if (tags.colors) document.getElementById('f-colors').value = tags.colors.join(', ');
+    if (tags.type) document.getElementById('f-type').value = tags.type;
+    // Category chips
     document.querySelectorAll('#cat-chips .chip').forEach(b => b.classList.toggle('on', b.dataset.cat === tags.category));
-    document.querySelectorAll('.chip[onclick*="season"]').forEach(b => b.classList.toggle('on', (tags.season||[]).includes(b.textContent)));
-    document.querySelectorAll('.chip[onclick*="style"]').forEach(b  => b.classList.toggle('on', (tags.style||[]).includes(b.textContent)));
+    if (tags.category) addData.category = tags.category;
+    // Colour swatches
+    if (tags.colors?.length) {
+      addData.colors = [];
+      document.querySelectorAll('.color-swatch').forEach(b => b.classList.remove('on'));
+      tags.colors.forEach(tc => {
+        const swatch = [...document.querySelectorAll('.color-swatch')].find(b =>
+          b.dataset.color.toLowerCase() === tc.toLowerCase() ||
+          b.dataset.color.toLowerCase().includes(tc.toLowerCase()) ||
+          tc.toLowerCase().includes(b.dataset.color.toLowerCase().split(' ')[0])
+        );
+        if (swatch && !addData.colors.includes(swatch.dataset.color)) {
+          swatch.classList.add('on');
+          addData.colors.push(swatch.dataset.color);
+        }
+      });
+    }
+    // Season & style chips
+    document.querySelectorAll('.chip[onclick*="season"]').forEach(b => {
+      const on = (tags.season||[]).includes(b.textContent.trim());
+      b.classList.toggle('on', on);
+    });
+    document.querySelectorAll('.chip[onclick*="style"]').forEach(b => {
+      const on = (tags.style||[]).includes(b.textContent.trim());
+      b.classList.toggle('on', on);
+    });
     toast('Tagged!');
-  } catch { toast('AI tagging failed — fill in manually'); }
+  } catch(err) {
+    console.error('AI tag error:', err);
+    toast('Tagging failed: ' + (err.message||'unknown error'));
+  }
   finally {
     btn.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg> Re-tag with AI';
     btn.disabled = false;
@@ -841,7 +913,7 @@ async function saveItem() {
     const id = uid(), imageId = `img_${id}`;
     await dbSaveImg(imageId, addBlob);
     const dbxPath = _dbx.isConnected() ? `/Apps/Style/photos/${imageId}.jpg` : null;
-    const item = { id, imageId, dbxPath, type: addData.type||'Item', category: addData.category||'Other', colors: addData.colors, season: addData.season, style: addData.style, description: addData.description, notes: addData.notes, addedAt: new Date().toISOString() };
+    const item = { id, imageId, dbxPath, type: addData.type||'Item', category: addData.category||'Other', colors: addData.colors, season: addData.season, style: addData.style, brand: addData.brand, size: addData.size, description: addData.description, notes: addData.notes, addedAt: new Date().toISOString() };
     addItem(item);
     if (dbxPath) dbxUpload(dbxPath, addBlob).then(() => syncWardrobe());
     toast('Saved!');
@@ -855,7 +927,7 @@ async function saveItem() {
 
 function resetAdd() {
   addBlob=null; addB64=null; addMime=null;
-  addData = { type:'', category:'', colors:[], season:[], style:[], description:'', notes:'' };
+  addData = { type:'', category:'', colors:[], season:[], style:[], brand:'', size:'', notes:'' };
   originalBlob = null;
   const zone = document.getElementById('photo-zone');
   zone.classList.remove('has-photo');
@@ -978,7 +1050,7 @@ async function openItem(id) {
     ${imgHtml}
     <div style="padding:20px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
-        <div><div style="font-size:22px;font-weight:700">${item.type}</div><div style="font-size:14px;color:var(--muted);margin-top:3px">${item.category}</div></div>
+        <div><div style="font-size:22px;font-weight:700">${item.type}</div><div style="font-size:14px;color:var(--muted);margin-top:3px">${[item.category,item.brand,item.size?`Size ${item.size}`:''].filter(Boolean).join(' · ')}</div></div>
         <button onclick="removeItem('${id}')" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--muted);padding:4px">🗑</button>
       </div>
       ${tagRow('Colors', item.colors, 'tag-color')}
