@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Style">
+<meta name="theme-color" content="#F7F4F0">
+<link rel="manifest" href="manifest.json">
+<title>Style</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F4F0;
+  --surface:#FFFFFF;
+  --primary:#1C1C1E;
+  --accent:#B5895A;
+  --accent-light:#F2EBE1;
+  --muted:#8E8E93;
+  --border:#E5E5EA;
+  --green:#34C759;
+  --orange:#FF9500;
+  --red:#FF3B30;
+  --blue:#5856D6;
+  --nav-h:64px;
+  --header-h:56px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;background:var(--bg);color:var(--primary);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+#app{height:100dvh;display:flex;flex-direction:column;max-width:500px;margin:0 auto;background:var(--bg);position:relative}
+
+/* Header */
+.header{height:var(--header-h);background:var(--surface);display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--border);flex-shrink:0;z-index:10}
+.header h1{font-size:20px;font-weight:700;letter-spacing:-.5px}
+.icon-btn{width:36px;height:36px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--primary);-webkit-tap-highlight-color:transparent}
+.icon-btn:active{background:var(--border)}
+
+/* Screens */
+.screens{flex:1;overflow:hidden;position:relative}
+.screen{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav-h) + var(--safe-b) + 20px);display:none}
+.screen.active{display:block}
+
+/* Bottom nav */
+.nav{height:calc(var(--nav-h) + var(--safe-b));padding-bottom:var(--safe-b);background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:flex-start;flex-shrink:0}
+.nav-btn{flex:1;height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;letter-spacing:.2px;-webkit-tap-highlight-color:transparent;transition:color .15s}
+.nav-btn.active{color:var(--accent)}
+.nav-btn svg{transition:transform .15s}
+.nav-btn.active svg{transform:translateY(-1px)}
+
+/* Buttons */
+.btn{padding:14px 20px;border-radius:14px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent;transition:transform .1s,opacity .15s;font-family:inherit}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45;pointer-events:none}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-secondary{background:var(--surface);color:var(--primary);border:1.5px solid var(--border)}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-full{width:100%}
+.btn-ai{width:100%;background:linear-gradient(135deg,#B5895A,#D4A574);color:#fff;margin:14px 0}
+
+/* Cards */
+.card{background:var(--surface);border-radius:18px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+
+/* Tags */
+.tag{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap}
+.tag-type{background:var(--accent-light);color:var(--accent)}
+.tag-season{background:#EAF4EA;color:#2E7D32}
+.tag-style{background:#EEF0FB;color:#5C6BC0}
+.tag-color{background:var(--border);color:var(--primary)}
+
+/* Chips */
+.chip{padding:8px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .15s}
+.chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.chip-group{display:flex;flex-wrap:wrap;gap:8px}
+
+/* Form */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px}
+.form-input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;background:var(--surface);color:var(--primary);outline:none;transition:border-color .15s;font-family:inherit}
+.form-input:focus{border-color:var(--accent)}
+
+/* Spinner */
+.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== WARDROBE ===== */
+.filter-bar{display:flex;gap:8px;padding:12px 16px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.filter-bar::-webkit-scrollbar{display:none}
+.filter-chip{padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .15s}
+.filter-chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.wardrobe-count{padding:0 16px 8px;font-size:13px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px}
+.item-card{border-radius:16px;overflow:hidden;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.06);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .1s}
+.item-card:active{transform:scale(.97)}
+.item-img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
+.item-placeholder{width:100%;aspect-ratio:3/4;background:linear-gradient(135deg,#ede9e3,#e2dcd4);display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.item-info{padding:10px 12px 12px}
+.item-type{font-size:13px;font-weight:600;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-tags{display:flex;flex-wrap:wrap;gap:4px}
+.item-tag{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--accent-light);color:var(--accent)}
+.empty{padding:64px 32px;text-align:center;color:var(--muted);grid-column:1/-1}
+.empty-icon{font-size:52px;margin-bottom:16px}
+.empty h3{font-size:18px;margin-bottom:8px;color:var(--primary);font-weight:700}
+.empty p{font-size:14px;line-height:1.6}
+
+/* ===== ADD ===== */
+.add-wrap{padding:16px}
+.photo-zone{width:100%;aspect-ratio:3/4;max-height:320px;border:2px dashed var(--border);border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:border-color .15s,background .15s;overflow:hidden;background:var(--surface);-webkit-tap-highlight-color:transparent}
+.photo-zone:active,.photo-zone.has-photo{border-style:solid}
+.photo-zone img{width:100%;height:100%;object-fit:cover}
+.photo-zone p{color:var(--muted);font-size:14px;font-weight:500}
+.photo-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.form-section{margin-top:20px}
+.form-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:14px}
+
+/* ===== STYLE ===== */
+.style-wrap{padding:16px}
+.style-card{background:var(--surface);border-radius:20px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.style-card h2{font-size:21px;font-weight:700;margin-bottom:6px}
+.style-card p{font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.mood-input{width:100%;padding:14px;border:1.5px solid var(--border);border-radius:14px;font-size:15px;font-family:inherit;outline:none;resize:none;height:76px;transition:border-color .15s}
+.mood-input:focus{border-color:var(--accent)}
+.mood-examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.mood-chip{padding:7px 14px;border-radius:20px;background:var(--accent-light);color:var(--accent);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:inherit;-webkit-tap-highlight-color:transparent}
+.suggestions{margin-top:20px;display:flex;flex-direction:column;gap:14px}
+.outfit-card{background:var(--surface);border-radius:20px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.outfit-num{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:8px}
+.outfit-name{font-size:17px;font-weight:700;margin-bottom:10px}
+.outfit-thumbs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:6px;margin-bottom:12px}
+.outfit-thumbs::-webkit-scrollbar{display:none}
+.outfit-thumb{flex-shrink:0;width:72px;height:96px;border-radius:10px;object-fit:cover;background:var(--border)}
+.outfit-thumb-ph{flex-shrink:0;width:72px;height:96px;border-radius:10px;background:linear-gradient(135deg,#ede9e3,#e2dcd4);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--muted);text-align:center;padding:6px;line-height:1.3}
+.outfit-items-list{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:10px}
+.outfit-why{font-size:14px;color:var(--primary);line-height:1.6;padding-top:10px;border-top:1px solid var(--border)}
+
+/* ===== SHOP ===== */
+.shop-wrap{padding:16px}
+.shop-header{background:var(--surface);border-radius:20px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:16px}
+.shop-header h2{font-size:21px;font-weight:700;margin-bottom:6px}
+.shop-header p{font-size:14px;color:var(--muted);line-height:1.5}
+.shop-result-card{background:var(--surface);border-radius:20px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-top:16px}
+.verdict{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:30px;font-size:14px;font-weight:700;margin-bottom:14px}
+.verdict-buy{background:#E8F5E9;color:#1B5E20}
+.verdict-similar{background:#FFF3E0;color:#BF360C}
+.verdict-gap{background:#EEF0FB;color:#283593}
+.verdict-no{background:#FFEBEE;color:#B71C1C}
+.shop-section{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:16px 0 8px}
+.tags-row{display:flex;flex-wrap:wrap;gap:7px}
+
+/* ===== MODALS ===== */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.sheet{background:var(--surface);border-radius:26px 26px 0 0;width:100%;max-height:92dvh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);padding-bottom:calc(24px + var(--safe-b))}
+.overlay.open .sheet{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:12px 20px 16px}
+.sheet-title{font-size:20px;font-weight:700}
+.sheet-close{width:30px;height:30px;border-radius:50%;border:none;background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:17px}
+
+/* Settings */
+.settings-section{background:var(--surface);border-radius:18px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:14px}
+.settings-label{padding:14px 16px 6px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+.settings-row{display:flex;align-items:center;padding:14px 16px;gap:14px;border-top:1px solid var(--border);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.settings-row:first-of-type{border-top:none}
+.settings-row:active{background:var(--bg)}
+.srow-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.srow-info{flex:1}
+.srow-title{font-size:15px;font-weight:500}
+.srow-sub{font-size:13px;color:var(--muted);margin-top:2px}
+
+/* Toast */
+.toast{position:fixed;bottom:calc(var(--nav-h) + var(--safe-b) + 14px);left:50%;transform:translateX(-50%) translateY(80px);background:var(--primary);color:#fff;padding:11px 20px;border-radius:30px;font-size:14px;font-weight:500;z-index:200;transition:transform .3s cubic-bezier(.32,.72,0,1);white-space:nowrap;pointer-events:none;max-width:calc(100vw - 48px);text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Loading */
+.loading{position:fixed;inset:0;background:rgba(247,244,240,.88);z-index:150;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;opacity:0;pointer-events:none;transition:opacity .2s}
+.loading.show{opacity:1;pointer-events:all}
+.loading-spin{width:42px;height:42px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+.loading-text{font-size:15px;color:var(--muted);font-weight:500}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header class="header">
+    <h1 id="header-title">My Wardrobe</h1>
+    <button class="icon-btn" id="settings-btn" aria-label="Settings">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- Screens -->
+  <div class="screens">
+
+    <!-- WARDROBE -->
+    <div id="screen-wardrobe" class="screen active">
+      <div class="filter-bar" id="filter-bar"></div>
+      <div class="wardrobe-count" id="wardrobe-count"></div>
+      <div class="grid" id="wardrobe-grid"></div>
+    </div>
+
+    <!-- ADD -->
+    <div id="screen-add" class="screen">
+      <div class="add-wrap">
+        <div class="photo-zone" id="photo-zone">
+          <svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--accent)">
+            <path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+            <circle cx="12" cy="13" r="3"/>
+          </svg>
+          <p>Tap to take or upload a photo</p>
+        </div>
+        <input type="file" id="photo-input" accept="image/*" style="display:none">
+        <div class="photo-btns">
+          <button class="btn btn-secondary" id="camera-btn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+            Camera
+          </button>
+          <button class="btn btn-secondary" id="gallery-btn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            Gallery
+          </button>
+        </div>
+        <button class="btn btn-ai" id="ai-tag-btn" disabled>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+          Auto-Tag with AI
+        </button>
+        <div id="add-form"></div>
+        <button class="btn btn-primary btn-full" id="save-btn" style="margin-top:16px" disabled>Save to Wardrobe</button>
+      </div>
+    </div>
+
+    <!-- STYLE -->
+    <div id="screen-style" class="screen">
+      <div class="style-wrap">
+        <div class="style-card">
+          <h2>What's your vibe?</h2>
+          <p>Describe your mood or occasion and I'll put together outfits from your wardrobe.</p>
+          <textarea class="mood-input" id="mood-input" placeholder="e.g. casual brunch, job interview, date night..."></textarea>
+          <div class="mood-examples" id="mood-examples"></div>
+          <button class="btn btn-accent btn-full" style="margin-top:16px" onclick="getSuggestions()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+            Get Outfit Ideas
+          </button>
+        </div>
+        <div id="outfit-results"></div>
+      </div>
+    </div>
+
+    <!-- SHOP -->
+    <div id="screen-shop" class="screen">
+      <div class="shop-wrap">
+        <div class="shop-header">
+          <h2>Should you buy it?</h2>
+          <p>Take a photo of something in the store and I'll check how it works with your wardrobe.</p>
+        </div>
+        <div class="photo-zone" id="shop-photo-zone" style="max-height:300px">
+          <svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--accent)">
+            <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+          </svg>
+          <p>Take a photo in the store</p>
+        </div>
+        <input type="file" id="shop-input" accept="image/*" style="display:none">
+        <div class="photo-btns" style="margin-top:10px">
+          <button class="btn btn-secondary" id="shop-camera-btn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+            Camera
+          </button>
+          <button class="btn btn-secondary" id="shop-gallery-btn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            Gallery
+          </button>
+        </div>
+        <button class="btn btn-accent btn-full" id="shop-analyze-btn" style="margin-top:14px" disabled>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          Analyze Item
+        </button>
+        <div id="shop-result"></div>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <!-- Bottom Nav -->
+  <nav class="nav">
+    <button class="nav-btn active" data-screen="wardrobe">
+      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 9l1-5h16l1 5M3 9h18M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M9 14h6"/></svg>
+      Wardrobe
+    </button>
+    <button class="nav-btn" data-screen="add">
+      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+      Add
+    </button>
+    <button class="nav-btn" data-screen="style">
+      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+      Style
+    </button>
+    <button class="nav-btn" data-screen="shop">
+      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+      Shop
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- Item Detail Modal -->
+<div class="overlay" id="item-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <span class="sheet-title" id="item-title"></span>
+      <button class="sheet-close" id="item-close">✕</button>
+    </div>
+    <div id="item-body"></div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="overlay" id="settings-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <span class="sheet-title">Settings</span>
+      <button class="sheet-close" id="settings-close">✕</button>
+    </div>
+    <div id="settings-body" style="padding:0 16px 8px"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Loading -->
+<div class="loading" id="loading">
+  <div class="loading-spin"></div>
+  <p class="loading-text" id="loading-text">Thinking...</p>
+</div>
+
+<script>
+/* ===================== CONFIG ===================== */
+const GEMINI_KEY = 'AIzaSyBmzJxad566i5epLJfL0aWg1N4prXgPQZ4';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+
+const CATEGORIES = ['All','Tops','Bottoms','Dresses & Jumpsuits','Outerwear','Shoes','Bags','Accessories','Activewear','Other'];
+const SEASONS    = ['Spring','Summer','Fall','Winter','All Season'];
+const STYLES     = ['Casual','Professional','Smart Casual','Formal','Athletic','Boho','Streetwear','Evening','Beach'];
+const MOODS      = ['Casual brunch','Job interview','Date night','Weekend errands','Work meeting','Gym day','Beach day','Girls night'];
+
+/* ===================== INDEXEDDB ===================== */
+let idb;
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('StyleApp', 1);
+    r.onupgradeneeded = e => {
+      if (!e.target.result.objectStoreNames.contains('images'))
+        e.target.result.createObjectStore('images', { keyPath: 'id' });
+    };
+    r.onsuccess = e => { idb = e.target.result; res(); };
+    r.onerror   = () => rej(r.error);
+  });
+}
+function dbSaveImg(id, blob) {
+  return new Promise((res, rej) => {
+    const tx = idb.transaction('images','readwrite');
+    tx.objectStore('images').put({ id, blob });
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+function dbGetImg(id) {
+  return new Promise(res => {
+    if (!id) return res(null);
+    const r = idb.transaction('images','readonly').objectStore('images').get(id);
+    r.onsuccess = () => res(r.result?.blob || null);
+    r.onerror   = () => res(null);
+  });
+}
+function dbDelImg(id) {
+  return new Promise(res => {
+    const tx = idb.transaction('images','readwrite');
+    tx.objectStore('images').delete(id);
+    tx.oncomplete = res; tx.onerror = res;
+  });
+}
+function dbClearImgs() {
+  return new Promise(res => {
+    const tx = idb.transaction('images','readwrite');
+    tx.objectStore('images').clear();
+    tx.oncomplete = res; tx.onerror = res;
+  });
+}
+
+/* ===================== WARDROBE DATA ===================== */
+const getWardrobe  = () => { try { return JSON.parse(localStorage.getItem('wardrobe')||'[]'); } catch { return []; } };
+const saveWardrobe = w  => localStorage.setItem('wardrobe', JSON.stringify(w));
+const addItem      = i  => { const w = getWardrobe(); w.unshift(i); saveWardrobe(w); };
+const deleteItem   = id => saveWardrobe(getWardrobe().filter(i => i.id !== id));
+const uid          = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+/* ===================== GEMINI API ===================== */
+async function callGemini(prompt, b64 = null, mime = 'image/jpeg') {
+  const parts = [{ text: prompt }];
+  if (b64) parts.push({ inline_data: { mime_type: mime, data: b64 } });
+  const r = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts }] })
+  });
+  if (!r.ok) throw new Error(`Gemini ${r.status}`);
+  const d = await r.json();
+  return d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+function parseJson(txt) {
+  return JSON.parse(txt.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim());
+}
+
+async function aiTagItem(b64, mime) {
+  const txt = await callGemini(
+    `Analyze this clothing item and return ONLY valid JSON with this exact structure (no markdown):
+{
+  "type": "specific item name e.g. Navy Blazer, White Linen Shirt, Midi Skirt",
+  "category": "one of: Tops, Bottoms, Dresses & Jumpsuits, Outerwear, Shoes, Bags, Accessories, Activewear, Other",
+  "colors": ["primary color","secondary color if any"],
+  "season": ["one or more of: Spring, Summer, Fall, Winter, All Season"],
+  "style": ["one or more of: Casual, Professional, Smart Casual, Formal, Athletic, Boho, Streetwear, Evening, Beach"],
+  "description": "one sentence describing the item"
+}`, b64, mime);
+  return parseJson(txt);
+}
+
+async function aiOutfits(mood, wardrobe) {
+  const list = wardrobe.map(i => `• ${i.type} (${(i.colors||[]).join('/')})`).join('\n');
+  const txt = await callGemini(
+    `My wardrobe:\n${list}\n\nSuggest 2-3 complete outfits for: "${mood}"\nUse ONLY items from the list above.\n\nReturn ONLY valid JSON array (no markdown):\n[{"name":"outfit name","items":["exact item from list"],"why":"why this works"}]`
+  );
+  return parseJson(txt);
+}
+
+async function aiShopAnalysis(b64, mime, wardrobe) {
+  const list = wardrobe.map(i => `• ${i.type} (${(i.colors||[]).join('/')})`).join('\n') || '(empty wardrobe)';
+  const txt = await callGemini(
+    `My wardrobe:\n${list}\n\nAnalyze whether I should buy the item in this photo.\n\nReturn ONLY valid JSON (no markdown):\n{"verdict":"great match|similar exists|fills a gap|doesn't fit style","item_description":"brief description of the item","recommendation":"2-3 sentences of shopping advice","pairs_with":["items from my wardrobe"],"similar_items":["similar items I already own"]}`,
+    b64, mime
+  );
+  return parseJson(txt);
+}
+
+/* ===================== UI HELPERS ===================== */
+let toastT;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 2600);
+}
+function showLoading(txt = 'Thinking...') {
+  document.getElementById('loading-text').textContent = txt;
+  document.getElementById('loading').classList.add('show');
+}
+function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+function blobToB64(blob) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onloadend = () => res({ b64: r.result.split(',')[1], mime: blob.type });
+    r.readAsDataURL(blob);
+  });
+}
+
+/* ===================== NAVIGATION ===================== */
+const TITLES = { wardrobe:'My Wardrobe', add:'Add Item', style:'Style', shop:'Shop' };
+
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`screen-${screen}`).classList.add('active');
+  document.querySelector(`[data-screen="${screen}"]`).classList.add('active');
+  document.getElementById('header-title').textContent = TITLES[screen];
+  if (screen === 'wardrobe') renderWardrobe();
+}
+
+/* ===================== WARDROBE SCREEN ===================== */
+let activeFilter = 'All';
+
+function renderFilters() {
+  document.getElementById('filter-bar').innerHTML = CATEGORIES.map(c =>
+    `<button class="filter-chip${c===activeFilter?' on':''}" onclick="setFilter('${c}')">${c}</button>`
+  ).join('');
+}
+
+function setFilter(c) { activeFilter = c; renderFilters(); renderWardrobe(); }
+
+async function renderWardrobe() {
+  let items = getWardrobe();
+  if (activeFilter !== 'All') items = items.filter(i => i.category === activeFilter);
+
+  const count = document.getElementById('wardrobe-count');
+  count.textContent = items.length ? `${items.length} item${items.length>1?'s':''}` : '';
+
+  const grid = document.getElementById('wardrobe-grid');
+  if (!items.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">👗</div><h3>${activeFilter==='All'?'Your wardrobe is empty':`No ${activeFilter} yet`}</h3><p>${activeFilter==='All'?'Tap the + below to add your first item':'Try a different category or add some items'}</p></div>`;
+    return;
+  }
+
+  const cards = await Promise.all(items.map(async item => {
+    let imgTag;
+    if (item.imageId) {
+      const blob = await dbGetImg(item.imageId);
+      if (blob) imgTag = `<img class="item-img" src="${URL.createObjectURL(blob)}" alt="${item.type}">`;
+    }
+    if (!imgTag) imgTag = `<div class="item-placeholder"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`;
+    const tags = (item.style||[]).slice(0,2).map(s=>`<span class="item-tag">${s}</span>`).join('');
+    return `<div class="item-card" onclick="openItem('${item.id}')">${imgTag}<div class="item-info"><div class="item-type">${item.type||'Item'}</div><div class="item-tags">${tags}</div></div></div>`;
+  }));
+  grid.innerHTML = cards.join('');
+}
+
+/* ===================== ADD SCREEN ===================== */
+let addBlob=null, addB64=null, addMime=null;
+let addData = { type:'', category:'', colors:[], season:[], style:[], description:'', notes:'' };
+
+function buildAddForm() {
+  document.getElementById('add-form').innerHTML = `
+    <div class="form-section">
+      <div class="form-section-title">Item Details</div>
+      <div class="form-group"><label class="form-label">Type</label><input class="form-input" id="f-type" placeholder="e.g. Navy Blazer, White T-Shirt" oninput="addData.type=this.value"></div>
+      <div class="form-group"><label class="form-label">Category</label><div class="chip-group" id="cat-chips">${CATEGORIES.filter(c=>c!=='All').map(c=>`<button class="chip" data-cat="${c}" onclick="pickCat('${c}',this)">${c}</button>`).join('')}</div></div>
+      <div class="form-group"><label class="form-label">Season</label><div class="chip-group">${SEASONS.map(s=>`<button class="chip" onclick="toggleArr('season','${s}',this)">${s}</button>`).join('')}</div></div>
+      <div class="form-group"><label class="form-label">Style</label><div class="chip-group">${STYLES.map(s=>`<button class="chip" onclick="toggleArr('style','${s}',this)">${s}</button>`).join('')}</div></div>
+      <div class="form-group"><label class="form-label">Colors</label><input class="form-input" id="f-colors" placeholder="e.g. navy, white, beige" oninput="addData.colors=this.value.split(',').map(s=>s.trim()).filter(Boolean)"></div>
+      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea class="form-input" id="f-notes" placeholder="Brand, size, where you bought it..." rows="2" style="resize:none" oninput="addData.notes=this.value"></textarea></div>
+    </div>`;
+}
+
+function pickCat(c, btn) {
+  document.querySelectorAll('#cat-chips .chip').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  addData.category = c;
+}
+
+function toggleArr(field, val, btn) {
+  btn.classList.toggle('on');
+  const arr = addData[field];
+  const i = arr.indexOf(val);
+  i >= 0 ? arr.splice(i,1) : arr.push(val);
+}
+
+function applyPhoto(file) {
+  if (!file) return;
+  addBlob = file;
+  const r = new FileReader();
+  r.onload = e => {
+    const zone = document.getElementById('photo-zone');
+    zone.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+    zone.classList.add('has-photo');
+    addB64  = e.target.result.split(',')[1];
+    addMime = file.type;
+    document.getElementById('ai-tag-btn').disabled = false;
+    document.getElementById('save-btn').disabled = false;
+  };
+  r.readAsDataURL(file);
+}
+
+async function runAiTag() {
+  if (!addB64) return;
+  const btn = document.getElementById('ai-tag-btn');
+  btn.innerHTML = '<div class="spin"></div> Analyzing...';
+  btn.disabled = true;
+  try {
+    const tags = await aiTagItem(addB64, addMime);
+    addData = { ...addData, ...tags };
+    if (tags.type)   document.getElementById('f-type').value = tags.type;
+    if (tags.colors) document.getElementById('f-colors').value = tags.colors.join(', ');
+    document.querySelectorAll('#cat-chips .chip').forEach(b => b.classList.toggle('on', b.dataset.cat === tags.category));
+    document.querySelectorAll('.chip[onclick*="season"]').forEach(b => b.classList.toggle('on', (tags.season||[]).includes(b.textContent)));
+    document.querySelectorAll('.chip[onclick*="style"]').forEach(b  => b.classList.toggle('on', (tags.style||[]).includes(b.textContent)));
+    toast('Tagged!');
+  } catch { toast('AI tagging failed — fill in manually'); }
+  finally {
+    btn.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg> Re-tag with AI';
+    btn.disabled = false;
+  }
+}
+
+async function saveItem() {
+  if (!addBlob) { toast('Add a photo first'); return; }
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const id = uid(), imageId = `img_${id}`;
+    await dbSaveImg(imageId, addBlob);
+    addItem({ id, imageId, type: addData.type||'Item', category: addData.category||'Other', colors: addData.colors, season: addData.season, style: addData.style, description: addData.description, notes: addData.notes, addedAt: new Date().toISOString() });
+    toast('Saved!');
+    resetAdd();
+    goTo('wardrobe');
+  } catch {
+    toast('Error saving — try again');
+    btn.disabled = false; btn.textContent = 'Save to Wardrobe';
+  }
+}
+
+function resetAdd() {
+  addBlob=null; addB64=null; addMime=null;
+  addData = { type:'', category:'', colors:[], season:[], style:[], description:'', notes:'' };
+  const zone = document.getElementById('photo-zone');
+  zone.classList.remove('has-photo');
+  zone.innerHTML = `<svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--accent)"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg><p>Tap to take or upload a photo</p>`;
+  document.getElementById('ai-tag-btn').disabled = true;
+  document.getElementById('ai-tag-btn').innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg> Auto-Tag with AI';
+  document.getElementById('save-btn').disabled = true;
+  buildAddForm();
+}
+
+/* ===================== STYLE SCREEN ===================== */
+function buildMoodExamples() {
+  document.getElementById('mood-examples').innerHTML = MOODS.map(m =>
+    `<button class="mood-chip" onclick="document.getElementById('mood-input').value='${m}'">${m}</button>`
+  ).join('');
+}
+
+async function getSuggestions() {
+  const mood = document.getElementById('mood-input').value.trim();
+  if (!mood) { toast('Tell me your vibe first!'); return; }
+  const wardrobe = getWardrobe();
+  if (wardrobe.length < 3) { toast('Add at least 3 items to get outfit ideas'); return; }
+  showLoading('Creating outfit ideas...');
+  try {
+    const outfits = await aiOutfits(mood, wardrobe);
+    await renderOutfits(outfits, wardrobe);
+  } catch { toast('Could not get suggestions — try again'); }
+  finally { hideLoading(); }
+}
+
+async function renderOutfits(outfits, wardrobe) {
+  const el = document.getElementById('outfit-results');
+  const cards = await Promise.all(outfits.map(async (o, i) => {
+    const matched = (o.items||[]).map(name =>
+      wardrobe.find(w => w.type.toLowerCase().split(' ').some(word => name.toLowerCase().includes(word)) || name.toLowerCase().split(' ').some(word => w.type.toLowerCase().includes(word)))
+    ).filter(Boolean);
+
+    const thumbs = await Promise.all(matched.slice(0,5).map(async item => {
+      if (item.imageId) {
+        const blob = await dbGetImg(item.imageId);
+        if (blob) return `<img class="outfit-thumb" src="${URL.createObjectURL(blob)}" alt="${item.type}">`;
+      }
+      return `<div class="outfit-thumb-ph">${item.type}</div>`;
+    }));
+
+    return `<div class="outfit-card">
+      <div class="outfit-num">Outfit ${i+1}</div>
+      <div class="outfit-name">${o.name||''}</div>
+      ${thumbs.length ? `<div class="outfit-thumbs">${thumbs.join('')}</div>` : ''}
+      <div class="outfit-items-list">${(o.items||[]).map(it=>`• ${it}`).join('<br>')}</div>
+      <div class="outfit-why">${o.why||''}</div>
+    </div>`;
+  }));
+  el.innerHTML = `<div class="suggestions">${cards.join('')}</div>`;
+}
+
+/* ===================== SHOP SCREEN ===================== */
+let shopB64=null, shopMime=null;
+
+function applyShopPhoto(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    const zone = document.getElementById('shop-photo-zone');
+    zone.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+    zone.classList.add('has-photo');
+    shopB64  = e.target.result.split(',')[1];
+    shopMime = file.type;
+    document.getElementById('shop-analyze-btn').disabled = false;
+  };
+  r.readAsDataURL(file);
+}
+
+async function runShopAnalysis() {
+  if (!shopB64) return;
+  showLoading('Analyzing item...');
+  try {
+    const result = await aiShopAnalysis(shopB64, shopMime, getWardrobe());
+    renderShopResult(result);
+  } catch { toast('Analysis failed — try again'); }
+  finally { hideLoading(); }
+}
+
+function renderShopResult(r) {
+  const map = {
+    'great match':      { cls:'verdict-buy',     icon:'✅' },
+    'similar exists':   { cls:'verdict-similar',  icon:'⚠️' },
+    'fills a gap':      { cls:'verdict-gap',      icon:'💡' },
+    "doesn't fit style":{ cls:'verdict-no',       icon:'❌' }
+  };
+  const v = map[r.verdict] || { cls:'verdict-gap', icon:'💡' };
+  const pairTags = (r.pairs_with||[]).map(t=>`<span class="tag tag-type">${t}</span>`).join('');
+  const simTags  = (r.similar_items||[]).map(t=>`<span class="tag" style="background:#FFF3E0;color:#BF360C">${t}</span>`).join('');
+
+  document.getElementById('shop-result').innerHTML = `
+    <div class="shop-result-card">
+      <div class="verdict ${v.cls}">${v.icon} ${r.verdict}</div>
+      ${r.item_description ? `<p style="font-size:14px;color:var(--muted);margin-bottom:12px">${r.item_description}</p>` : ''}
+      <p style="font-size:15px;line-height:1.6">${r.recommendation}</p>
+      ${pairTags ? `<div class="shop-section">Pairs well with</div><div class="tags-row">${pairTags}</div>` : ''}
+      ${simTags  ? `<div class="shop-section">Similar to what you own</div><div class="tags-row">${simTags}</div>` : ''}
+    </div>`;
+}
+
+/* ===================== ITEM DETAIL MODAL ===================== */
+async function openItem(id) {
+  const item = getWardrobe().find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('item-title').textContent = item.type;
+
+  let imgHtml = '';
+  if (item.imageId) {
+    const blob = await dbGetImg(item.imageId);
+    if (blob) imgHtml = `<img src="${URL.createObjectURL(blob)}" style="width:100%;max-height:400px;object-fit:cover;display:block">`;
+  }
+  if (!imgHtml) imgHtml = `<div style="width:100%;height:220px;background:linear-gradient(135deg,#ede9e3,#e2dcd4);display:flex;align-items:center;justify-content:center;font-size:56px">👗</div>`;
+
+  const tagRow = (label, arr, cls) => arr?.length ? `
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">${label}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px">${arr.map(t=>`<span class="tag ${cls}">${t}</span>`).join('')}</div>
+    </div>` : '';
+
+  document.getElementById('item-body').innerHTML = `
+    ${imgHtml}
+    <div style="padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+        <div><div style="font-size:22px;font-weight:700">${item.type}</div><div style="font-size:14px;color:var(--muted);margin-top:3px">${item.category}</div></div>
+        <button onclick="removeItem('${id}')" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--muted);padding:4px">🗑</button>
+      </div>
+      ${tagRow('Colors', item.colors, 'tag-color')}
+      ${tagRow('Season', item.season, 'tag-season')}
+      ${tagRow('Style',  item.style,  'tag-style')}
+      ${item.description ? `<p style="font-size:14px;color:var(--muted);line-height:1.55;margin-bottom:14px">${item.description}</p>` : ''}
+      ${item.notes ? `<div style="padding:12px;background:var(--bg);border-radius:12px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:5px">Notes</div><p style="font-size:14px;line-height:1.5">${item.notes}</p></div>` : ''}
+      <div style="font-size:12px;color:var(--muted)">Added ${new Date(item.addedAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
+    </div>`;
+  document.getElementById('item-overlay').classList.add('open');
+}
+
+async function removeItem(id) {
+  if (!confirm('Remove this item from your wardrobe?')) return;
+  const item = getWardrobe().find(i => i.id === id);
+  if (item?.imageId) await dbDelImg(item.imageId);
+  deleteItem(id);
+  document.getElementById('item-overlay').classList.remove('open');
+  renderWardrobe();
+  toast('Item removed');
+}
+
+/* ===================== SETTINGS ===================== */
+function openSettings() {
+  const count = getWardrobe().length;
+  document.getElementById('settings-body').innerHTML = `
+    <div class="settings-section">
+      <div class="settings-label">Wardrobe</div>
+      <div class="settings-row" onclick="exportData()">
+        <div class="srow-icon" style="background:#EEF0FB">📤</div>
+        <div class="srow-info"><div class="srow-title">Export</div><div class="srow-sub">${count} item${count!==1?'s':''} · save a backup file</div></div>
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+      <div class="settings-row" onclick="importData()">
+        <div class="srow-icon" style="background:#E8F5E9">📥</div>
+        <div class="srow-info"><div class="srow-title">Import</div><div class="srow-sub">Restore from backup file</div></div>
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+      <div class="settings-row" onclick="clearAll()">
+        <div class="srow-icon" style="background:#FFEBEE">🗑</div>
+        <div class="srow-info"><div class="srow-title" style="color:var(--red)">Clear all data</div><div class="srow-sub">Cannot be undone</div></div>
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-label">About</div>
+      <div class="settings-row" style="cursor:default">
+        <div class="srow-icon" style="background:var(--accent-light)">✨</div>
+        <div class="srow-info"><div class="srow-title">Style</div><div class="srow-sub">AI wardrobe assistant · v1.0</div></div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);text-align:center;padding:8px 0 4px">Photos are stored locally on this device.<br>Export regularly to back up your wardrobe.</p>`;
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function exportData() {
+  const data = getWardrobe();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `style-wardrobe-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  toast('Wardrobe exported');
+}
+
+function importData() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json';
+  inp.onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const d = JSON.parse(e.target.result);
+        if (!Array.isArray(d)) throw new Error();
+        saveWardrobe(d);
+        document.getElementById('settings-overlay').classList.remove('open');
+        renderWardrobe();
+        toast(`Imported ${d.length} items`);
+      } catch { toast('Invalid file'); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+
+async function clearAll() {
+  if (!confirm('Delete all wardrobe items? This cannot be undone.')) return;
+  saveWardrobe([]);
+  await dbClearImgs();
+  document.getElementById('settings-overlay').classList.remove('open');
+  renderWardrobe();
+  toast('Wardrobe cleared');
+}
+
+/* ===================== INIT ===================== */
+async function init() {
+  await openDB();
+  renderFilters();
+  renderWardrobe();
+  buildAddForm();
+  buildMoodExamples();
+
+  // Navigation
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = btn.dataset.screen;
+      if (s === 'add')  resetAdd();
+      if (s === 'shop') { shopB64=null; shopMime=null; }
+      goTo(s);
+    });
+  });
+
+  // Add screen
+  const photoInput = document.getElementById('photo-input');
+  photoInput.addEventListener('change', e => applyPhoto(e.target.files[0]));
+  document.getElementById('camera-btn').addEventListener('click', () => { photoInput.setAttribute('capture','environment'); photoInput.click(); });
+  document.getElementById('gallery-btn').addEventListener('click', () => { photoInput.removeAttribute('capture'); photoInput.click(); });
+  document.getElementById('photo-zone').addEventListener('click', () => photoInput.click());
+  document.getElementById('ai-tag-btn').addEventListener('click', runAiTag);
+  document.getElementById('save-btn').addEventListener('click', saveItem);
+
+  // Shop screen
+  const shopInput = document.getElementById('shop-input');
+  shopInput.addEventListener('change', e => applyShopPhoto(e.target.files[0]));
+  document.getElementById('shop-camera-btn').addEventListener('click', () => { shopInput.setAttribute('capture','environment'); shopInput.click(); });
+  document.getElementById('shop-gallery-btn').addEventListener('click', () => { shopInput.removeAttribute('capture'); shopInput.click(); });
+  document.getElementById('shop-photo-zone').addEventListener('click', () => shopInput.click());
+  document.getElementById('shop-analyze-btn').addEventListener('click', runShopAnalysis);
+
+  // Settings
+  document.getElementById('settings-btn').addEventListener('click', openSettings);
+  document.getElementById('settings-close').addEventListener('click', () => document.getElementById('settings-overlay').classList.remove('open'));
+  document.getElementById('settings-overlay').addEventListener('click', e => { if (e.target===e.currentTarget) document.getElementById('settings-overlay').classList.remove('open'); });
+
+  // Item modal
+  document.getElementById('item-close').addEventListener('click', () => document.getElementById('item-overlay').classList.remove('open'));
+  document.getElementById('item-overlay').addEventListener('click', e => { if (e.target===e.currentTarget) document.getElementById('item-overlay').classList.remove('open'); });
+}
+
+init();
+</script>
+</body>
+</html>
