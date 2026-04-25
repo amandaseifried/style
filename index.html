@@ -475,11 +475,10 @@ const STYLES     = ['Casual','Smart Casual','Professional','Athletic','Formal','
 const MOODS      = ['Casual brunch','Job interview','Date night','Weekend errands','Work meeting','Gym day','Beach day','Girls night'];
 const COLORS     = [
   {name:'Black',hex:'#1C1C1E'},{name:'White',hex:'#F5F5F5',border:true},{name:'Grey',hex:'#8E8E93'},
-  {name:'Beige',hex:'#C8B89A'},{name:'Brown',hex:'#795548'},{name:'Navy',hex:'#1A237E'},
-  {name:'Blue',hex:'#1976D2'},{name:'Light Blue',hex:'#81D4FA',border:true},{name:'Red',hex:'#D32F2F'},
-  {name:'Pink',hex:'#F48FB1',border:true},{name:'Purple',hex:'#7B1FA2'},{name:'Green',hex:'#388E3C'},
-  {name:'Olive',hex:'#827717'},{name:'Yellow',hex:'#FBC02D',border:true},{name:'Orange',hex:'#F57C00'},
-  {name:'Gold',hex:'#FFD54F',border:true},{name:'Multicolor',hex:'conic-gradient(red,yellow,green,blue,purple,red)'},
+  {name:'Beige',hex:'#C8B89A'},{name:'Brown',hex:'#795548'},{name:'Red',hex:'#D32F2F'},
+  {name:'Orange',hex:'#F57C00'},{name:'Yellow',hex:'#F9C22E',border:true},{name:'Green',hex:'#388E3C'},
+  {name:'Blue',hex:'#1976D2'},{name:'Pink',hex:'#E91E8C'},{name:'Purple',hex:'#7B1FA2'},
+  {name:'Multi',hex:'linear-gradient(135deg, #E53935 25%, #1E88E5 25% 50%, #43A047 50% 75%, #FB8C00 75%)'},
 ];
 
 /* ===================== INDEXEDDB ===================== */
@@ -573,7 +572,7 @@ async function aiTagItem(b64, mime) {
 {
   "type": "descriptive item name e.g. Navy Blazer, White Linen Shirt, Midi Skirt, Chunky Knit Sweater",
   "category": "one of: Shirts, Sweaters, Blazers, Pants, Skirts, Dresses, Outerwear, Bags, Accessories, Activewear, Other",
-  "colors": ["pick from: Black, White, Grey, Beige, Brown, Navy, Blue, Light Blue, Red, Pink, Purple, Green, Olive, Yellow, Orange, Gold, Multicolor"],
+  "colors": ["pick from: Black, White, Grey, Beige, Brown, Red, Orange, Yellow, Green, Blue, Pink, Purple, Multi"],
   "season": ["one or more of: Spring, Summer, Fall, Winter, All Season"],
   "style": ["one or more of: Casual, Smart Casual, Professional, Athletic, Formal, Beach"],
   "description": "one sentence describing the item"
