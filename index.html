@@ -341,8 +341,126 @@ html,body{height:100%;background:var(--bg);color:var(--primary);font-family:-app
 
 <script>
 /* ===================== CONFIG ===================== */
-const GEMINI_KEY = 'AIzaSyBmzJxad566i5epLJfL0aWg1N4prXgPQZ4';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_KEY  = 'AIzaSyBmzJxad566i5epLJfL0aWg1N4prXgPQZ4';
+const GEMINI_URL  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const REDIRECT_URI    = location.origin + location.pathname.replace(/\/?$/, '/');
+const DROPBOX_APP_KEY = '2zraey09dekbvln';
+
+/* ===================== DROPBOX ===================== */
+const _dbx = {
+  get appKey()      { return localStorage.getItem('dbx_app_key') || DROPBOX_APP_KEY; },
+  get accessToken() { return localStorage.getItem('dbx_access'); },
+  get refreshToken(){ return localStorage.getItem('dbx_refresh'); },
+  get expiresAt()   { return parseInt(localStorage.getItem('dbx_exp') || '0'); },
+  set accessToken(v){ localStorage.setItem('dbx_access', v); },
+  set expiresAt(v)  { localStorage.setItem('dbx_exp', String(v)); },
+  isConnected()     { return !!this.refreshToken; },
+};
+
+function _rndStr(n) {
+  const ch='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  const a = new Uint8Array(n); crypto.getRandomValues(a);
+  return Array.from(a, x => ch[x % ch.length]).join('');
+}
+
+async function _pkceChallenge(verifier) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function dropboxLogin() {
+  if (!_dbx.appKey) { toast('Enter your Dropbox App Key first'); return; }
+  const verifier = _rndStr(64);
+  localStorage.setItem('dbx_verifier', verifier);
+  const challenge = await _pkceChallenge(verifier);
+  const p = new URLSearchParams({ client_id: _dbx.appKey, response_type:'code', code_challenge: challenge, code_challenge_method:'S256', redirect_uri: REDIRECT_URI, token_access_type:'offline' });
+  location.href = `https://www.dropbox.com/oauth2/authorize?${p}`;
+}
+
+async function handleDropboxCallback() {
+  const code = new URLSearchParams(location.search).get('code');
+  if (!code) return;
+  history.replaceState({}, '', location.pathname);
+  const verifier = localStorage.getItem('dbx_verifier');
+  if (!verifier || !_dbx.appKey) return;
+  try {
+    const r = await fetch('https://api.dropbox.com/oauth2/token', {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({ code, grant_type:'authorization_code', client_id: _dbx.appKey, code_verifier: verifier, redirect_uri: REDIRECT_URI })
+    });
+    const d = await r.json();
+    localStorage.removeItem('dbx_verifier');
+    if (d.access_token) {
+      _dbx.accessToken = d.access_token;
+      localStorage.setItem('dbx_refresh', d.refresh_token);
+      _dbx.expiresAt = Date.now() + d.expires_in * 1000;
+      toast('Dropbox connected!');
+    }
+  } catch(e) { console.error('Dropbox auth failed', e); }
+}
+
+async function _getToken() {
+  if (!_dbx.isConnected()) return null;
+  if (Date.now() < _dbx.expiresAt - 120000) return _dbx.accessToken;
+  try {
+    const r = await fetch('https://api.dropbox.com/oauth2/token', {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({ grant_type:'refresh_token', refresh_token: _dbx.refreshToken, client_id: _dbx.appKey })
+    });
+    const d = await r.json();
+    if (d.access_token) { _dbx.accessToken = d.access_token; _dbx.expiresAt = Date.now() + d.expires_in * 1000; return d.access_token; }
+  } catch {}
+  return null;
+}
+
+async function dbxUpload(path, blob) {
+  const token = await _getToken(); if (!token) return;
+  return fetch('https://content.dropboxapi.com/2/files/upload', {
+    method:'POST',
+    headers:{ 'Authorization':`Bearer ${token}`, 'Dropbox-API-Arg': JSON.stringify({path, mode:'overwrite', autorename:false}), 'Content-Type':'application/octet-stream' },
+    body: blob
+  });
+}
+
+async function dbxDownload(path) {
+  const token = await _getToken(); if (!token) return null;
+  const r = await fetch('https://content.dropboxapi.com/2/files/download', {
+    method:'POST',
+    headers:{ 'Authorization':`Bearer ${token}`, 'Dropbox-API-Arg': JSON.stringify({path}) }
+  });
+  return r.ok ? r.blob() : null;
+}
+
+async function dbxDelete(path) {
+  const token = await _getToken(); if (!token) return;
+  fetch('https://api.dropboxapi.com/2/files/delete_v2', {
+    method:'POST',
+    headers:{ 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+    body: JSON.stringify({path})
+  });
+}
+
+async function syncWardrobe() {
+  if (!_dbx.isConnected()) return;
+  const blob = new Blob([localStorage.getItem('wardrobe')||'[]'], {type:'application/json'});
+  dbxUpload('/Apps/Style/wardrobe.json', blob);
+}
+
+/* helper: get image URL from IndexedDB or Dropbox fallback */
+async function getItemImage(item) {
+  if (item.imageId) {
+    const blob = await dbGetImg(item.imageId);
+    if (blob) return URL.createObjectURL(blob);
+  }
+  if (item.dbxPath && _dbx.isConnected()) {
+    const blob = await dbxDownload(item.dbxPath);
+    if (blob) {
+      if (item.imageId) dbSaveImg(item.imageId, blob); // re-cache
+      return URL.createObjectURL(blob);
+    }
+  }
+  return null;
+}
 
 const CATEGORIES = ['All','Tops','Bottoms','Dresses & Jumpsuits','Outerwear','Shoes','Bags','Accessories','Activewear','Other'];
 const SEASONS    = ['Spring','Summer','Fall','Winter','All Season'];
@@ -509,10 +627,8 @@ async function renderWardrobe() {
 
   const cards = await Promise.all(items.map(async item => {
     let imgTag;
-    if (item.imageId) {
-      const blob = await dbGetImg(item.imageId);
-      if (blob) imgTag = `<img class="item-img" src="${URL.createObjectURL(blob)}" alt="${item.type}">`;
-    }
+    const imgUrl = await getItemImage(item);
+    if (imgUrl) imgTag = `<img class="item-img" src="${imgUrl}" alt="${item.type}">`;
     if (!imgTag) imgTag = `<div class="item-placeholder"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`;
     const tags = (item.style||[]).slice(0,2).map(s=>`<span class="item-tag">${s}</span>`).join('');
     return `<div class="item-card" onclick="openItem('${item.id}')">${imgTag}<div class="item-info"><div class="item-type">${item.type||'Item'}</div><div class="item-tags">${tags}</div></div></div>`;
@@ -521,7 +637,7 @@ async function renderWardrobe() {
 }
 
 /* ===================== ADD SCREEN ===================== */
-let addBlob=null, addB64=null, addMime=null;
+let addBlob=null, addB64=null, addMime=null, originalBlob=null;
 let addData = { type:'', category:'', colors:[], season:[], style:[], description:'', notes:'' };
 
 function buildAddForm() {
@@ -552,18 +668,148 @@ function toggleArr(field, val, btn) {
 
 function applyPhoto(file) {
   if (!file) return;
+  originalBlob = file;
   addBlob = file;
   const r = new FileReader();
   r.onload = e => {
     const zone = document.getElementById('photo-zone');
-    zone.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+    zone.style.position = 'relative';
+    zone.innerHTML = `<img id="add-preview" src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
     zone.classList.add('has-photo');
     addB64  = e.target.result.split(',')[1];
     addMime = file.type;
     document.getElementById('ai-tag-btn').disabled = false;
     document.getElementById('save-btn').disabled = false;
+    processPhotoAsync(file);
   };
   r.readAsDataURL(file);
+}
+
+async function processPhotoAsync(blob) {
+  const zone = document.getElementById('photo-zone');
+  const ind = document.createElement('div');
+  ind.id = 'enhance-ind';
+  ind.style.cssText = 'position:absolute;bottom:10px;left:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;border-radius:10px;padding:9px 13px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(4px);z-index:5';
+  ind.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><div class="spin" style="width:14px;height:14px;border-width:2px"></div>Removing background…</div>`;
+  zone.appendChild(ind);
+  try {
+    const enhanced = await enhanceItemPhoto(blob);
+    if (!enhanced) { ind.remove(); return; }
+    addBlob = enhanced;
+    const reader = new FileReader();
+    reader.onload = e2 => { addB64 = e2.target.result.split(',')[1]; addMime = enhanced.type; };
+    reader.readAsDataURL(enhanced);
+    const img = document.getElementById('add-preview');
+    if (img) img.src = URL.createObjectURL(enhanced);
+    ind.innerHTML = `<span>✨ Background removed</span><button onclick="revertToOriginal()" style="background:none;border:none;color:rgba(255,255,255,.8);font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline">Use original</button>`;
+    setTimeout(() => { ind.style.transition='opacity .5s'; ind.style.opacity='0'; }, 3000);
+    setTimeout(() => ind.remove(), 3600);
+  } catch(e) {
+    console.warn('Enhancement failed:', e);
+    ind.remove();
+  }
+}
+
+async function enhanceItemPhoto(blob) {
+  try {
+    const mod = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/background-removal.js');
+    const noBg = await mod.removeBackground(blob);
+    return compositeProductPhoto(noBg);
+  } catch(e) {
+    console.warn('bg removal unavailable:', e.message);
+    return null;
+  }
+}
+
+function compositeProductPhoto(transparentBlob) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const W = 900, H = 1200;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // High-end studio background: soft top-lit gradient
+      const bg = ctx.createRadialGradient(W/2, H*0.3, 0, W/2, H*0.3, W*0.9);
+      bg.addColorStop(0,   '#FAFAF8');
+      bg.addColorStop(0.5, '#F2F0EC');
+      bg.addColorStop(1,   '#E8E5DF');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Subtle floor reflection gradient at bottom
+      const floor = ctx.createLinearGradient(0, H*0.75, 0, H);
+      floor.addColorStop(0, 'rgba(0,0,0,0)');
+      floor.addColorStop(1, 'rgba(0,0,0,0.04)');
+      ctx.fillStyle = floor;
+      ctx.fillRect(0, 0, W, H);
+
+      // Fit item with generous padding
+      const pad = 80;
+      const scale = Math.min((W - pad*2) / img.width, (H - pad*2) / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      const x = (W - w) / 2, y = (H - h) / 2 - 20; // slightly above center
+
+      // Multi-layer shadow for depth
+      ctx.shadowColor = 'rgba(0,0,0,0.22)';
+      ctx.shadowBlur = 40;
+      ctx.shadowOffsetY = 20;
+      ctx.drawImage(img, x, y, w, h);
+
+      ctx.shadowColor = 'rgba(0,0,0,0.08)';
+      ctx.shadowBlur = 80;
+      ctx.shadowOffsetY = 40;
+      ctx.drawImage(img, x, y, w, h);
+
+      // Auto-enhance lighting on the item pixels
+      ctx.shadowColor = 'transparent';
+      autoEnhanceLighting(ctx, W, H);
+
+      canvas.toBlob(b => resolve(b), 'image/jpeg', 0.94);
+    };
+    img.src = URL.createObjectURL(transparentBlob);
+  });
+}
+
+function autoEnhanceLighting(ctx, W, H) {
+  const data = ctx.getImageData(0, 0, W, H);
+  const px = data.data;
+  // Sample non-background pixels to find actual item range
+  let rMin=255, gMin=255, bMin=255, rMax=0, gMax=0, bMax=0;
+  for (let i = 0; i < px.length; i += 16) { // sample every 4th pixel for speed
+    const r=px[i], g=px[i+1], b=px[i+2];
+    // Skip near-background pixels (light gray/beige range)
+    if (r > 230 && g > 228 && b > 222) continue;
+    if (r < rMin) rMin=r; if (r > rMax) rMax=r;
+    if (g < gMin) gMin=g; if (g > gMax) gMax=g;
+    if (b < bMin) bMin=b; if (b > bMax) bMax=b;
+  }
+  const rRange = rMax-rMin||1, gRange = gMax-gMin||1, bRange = bMax-bMin||1;
+  // Only apply if the image actually needs lifting (avoid over-processing)
+  if (rMax < 200 || rMin > 30) {
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i] > 230 && px[i+1] > 228 && px[i+2] > 222) continue; // skip bg
+      px[i]   = Math.min(255, ((px[i]  -rMin)/rRange)*240 + 10);
+      px[i+1] = Math.min(255, ((px[i+1]-gMin)/gRange)*240 + 10);
+      px[i+2] = Math.min(255, ((px[i+2]-bMin)/bRange)*240 + 10);
+    }
+    ctx.putImageData(data, 0, 0);
+  }
+}
+
+async function revertToOriginal() {
+  if (!originalBlob) return;
+  document.getElementById('enhance-ind')?.remove();
+  addBlob = originalBlob;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('add-preview');
+    if (img) img.src = e.target.result;
+    addB64 = e.target.result.split(',')[1];
+    addMime = originalBlob.type;
+  };
+  reader.readAsDataURL(originalBlob);
 }
 
 async function runAiTag() {
@@ -594,7 +840,10 @@ async function saveItem() {
   try {
     const id = uid(), imageId = `img_${id}`;
     await dbSaveImg(imageId, addBlob);
-    addItem({ id, imageId, type: addData.type||'Item', category: addData.category||'Other', colors: addData.colors, season: addData.season, style: addData.style, description: addData.description, notes: addData.notes, addedAt: new Date().toISOString() });
+    const dbxPath = _dbx.isConnected() ? `/Apps/Style/photos/${imageId}.jpg` : null;
+    const item = { id, imageId, dbxPath, type: addData.type||'Item', category: addData.category||'Other', colors: addData.colors, season: addData.season, style: addData.style, description: addData.description, notes: addData.notes, addedAt: new Date().toISOString() };
+    addItem(item);
+    if (dbxPath) dbxUpload(dbxPath, addBlob).then(() => syncWardrobe());
     toast('Saved!');
     resetAdd();
     goTo('wardrobe');
@@ -607,6 +856,7 @@ async function saveItem() {
 function resetAdd() {
   addBlob=null; addB64=null; addMime=null;
   addData = { type:'', category:'', colors:[], season:[], style:[], description:'', notes:'' };
+  originalBlob = null;
   const zone = document.getElementById('photo-zone');
   zone.classList.remove('has-photo');
   zone.innerHTML = `<svg width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--accent)"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg><p>Tap to take or upload a photo</p>`;
@@ -644,11 +894,8 @@ async function renderOutfits(outfits, wardrobe) {
     ).filter(Boolean);
 
     const thumbs = await Promise.all(matched.slice(0,5).map(async item => {
-      if (item.imageId) {
-        const blob = await dbGetImg(item.imageId);
-        if (blob) return `<img class="outfit-thumb" src="${URL.createObjectURL(blob)}" alt="${item.type}">`;
-      }
-      return `<div class="outfit-thumb-ph">${item.type}</div>`;
+      const url = await getItemImage(item);
+      return url ? `<img class="outfit-thumb" src="${url}" alt="${item.type}">` : `<div class="outfit-thumb-ph">${item.type}</div>`;
     }));
 
     return `<div class="outfit-card">
@@ -717,10 +964,8 @@ async function openItem(id) {
   document.getElementById('item-title').textContent = item.type;
 
   let imgHtml = '';
-  if (item.imageId) {
-    const blob = await dbGetImg(item.imageId);
-    if (blob) imgHtml = `<img src="${URL.createObjectURL(blob)}" style="width:100%;max-height:400px;object-fit:cover;display:block">`;
-  }
+  const imgUrl = await getItemImage(item);
+  if (imgUrl) imgHtml = `<img src="${imgUrl}" style="width:100%;max-height:400px;object-fit:cover;display:block">`;
   if (!imgHtml) imgHtml = `<div style="width:100%;height:220px;background:linear-gradient(135deg,#ede9e3,#e2dcd4);display:flex;align-items:center;justify-content:center;font-size:56px">👗</div>`;
 
   const tagRow = (label, arr, cls) => arr?.length ? `
@@ -750,7 +995,9 @@ async function removeItem(id) {
   if (!confirm('Remove this item from your wardrobe?')) return;
   const item = getWardrobe().find(i => i.id === id);
   if (item?.imageId) await dbDelImg(item.imageId);
+  if (item?.dbxPath) dbxDelete(item.dbxPath);
   deleteItem(id);
+  syncWardrobe();
   document.getElementById('item-overlay').classList.remove('open');
   renderWardrobe();
   toast('Item removed');
@@ -759,7 +1006,27 @@ async function removeItem(id) {
 /* ===================== SETTINGS ===================== */
 function openSettings() {
   const count = getWardrobe().length;
+  const connected = _dbx.isConnected();
   document.getElementById('settings-body').innerHTML = `
+    <div class="settings-section">
+      <div class="settings-label">Dropbox Sync</div>
+      ${connected ? `
+      <div class="settings-row" style="cursor:default">
+        <div class="srow-icon" style="background:#E8F5E9">✅</div>
+        <div class="srow-info"><div class="srow-title">Connected</div><div class="srow-sub">Photos auto-upload to /Apps/Style/photos/</div></div>
+      </div>
+      <div class="settings-row" onclick="disconnectDropbox()">
+        <div class="srow-icon" style="background:#FFEBEE">🔌</div>
+        <div class="srow-info"><div class="srow-title" style="color:var(--red)">Disconnect</div></div>
+      </div>` : `
+      <div style="padding:14px 16px">
+        <button class="btn btn-primary btn-full" onclick="dropboxLogin()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2L0 6l6 4-6 4 6 4 6-4-2.1-1.4L12 14l6-4-6-4-1.9 1.3L8 6l4-2.7L6 2zm6 14l-6 4 6 4 6-4-6-4z"/></svg>
+          Connect Dropbox
+        </button>
+        <p style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;text-align:center">Photos will sync to your Dropbox at /Apps/Style/photos/</p>
+      </div>`}
+    </div>
     <div class="settings-section">
       <div class="settings-label">Wardrobe</div>
       <div class="settings-row" onclick="exportData()">
@@ -830,8 +1097,23 @@ async function clearAll() {
 }
 
 /* ===================== INIT ===================== */
+function saveDbxKeyAndLogin() {
+  const key = document.getElementById('dbx-key-input')?.value.trim();
+  if (!key) { toast('Paste your App Key first'); return; }
+  localStorage.setItem('dbx_app_key', key);
+  dropboxLogin();
+}
+
+function disconnectDropbox() {
+  if (!confirm('Disconnect Dropbox? Photos already saved locally are not affected.')) return;
+  ['dbx_access','dbx_refresh','dbx_exp','dbx_verifier'].forEach(k => localStorage.removeItem(k));
+  document.getElementById('settings-overlay').classList.remove('open');
+  toast('Dropbox disconnected');
+}
+
 async function init() {
   await openDB();
+  await handleDropboxCallback();
   renderFilters();
   renderWardrobe();
   buildAddForm();
