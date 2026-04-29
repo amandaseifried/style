@@ -402,6 +402,7 @@ async function handleDropboxCallback() {
       localStorage.setItem('dbx_refresh', d.refresh_token);
       _dbx.expiresAt = Date.now() + d.expires_in * 1000;
       toast('Dropbox connected!');
+      await restoreFromDropbox();
     }
   } catch(e) { console.error('Dropbox auth failed', e); }
 }
@@ -451,6 +452,28 @@ async function syncWardrobe() {
   if (!_dbx.isConnected()) return;
   const blob = new Blob([localStorage.getItem('wardrobe')||'[]'], {type:'application/json'});
   dbxUpload('/Apps/Style/wardrobe.json', blob);
+}
+
+async function restoreFromDropbox(force = false) {
+  if (!_dbx.isConnected()) { toast('Dropbox not connected'); return; }
+  const local = getWardrobe();
+  if (force && local.length > 0) {
+    if (!confirm(`Replace your ${local.length} local item${local.length !== 1 ? 's' : ''} with the Dropbox backup?`)) return;
+  } else if (!force && local.length > 0) {
+    return;
+  }
+  if (force) toast('Restoring from Dropbox…');
+  const blob = await dbxDownload('/Apps/Style/wardrobe.json');
+  if (!blob) { if (force) toast('No backup found in Dropbox'); return; }
+  try {
+    const text = await blob.text();
+    const data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error();
+    saveWardrobe(data);
+    renderWardrobe();
+    document.getElementById('settings-overlay')?.classList.remove('open');
+    toast(`Restored ${data.length} item${data.length !== 1 ? 's' : ''} from Dropbox`);
+  } catch { if (force) toast('Could not read Dropbox backup'); }
 }
 
 /* helper: get image URL from IndexedDB or Dropbox fallback */
@@ -1086,6 +1109,11 @@ function openSettings() {
         <div class="srow-icon" style="background:#E8F5E9">✅</div>
         <div class="srow-info"><div class="srow-title">Connected</div><div class="srow-sub">Photos auto-upload to /Apps/Style/photos/</div></div>
       </div>
+      <div class="settings-row" onclick="restoreFromDropbox(true)">
+        <div class="srow-icon" style="background:#E3F2FD">☁️</div>
+        <div class="srow-info"><div class="srow-title">Restore from Dropbox</div><div class="srow-sub">Replace local data with your Dropbox backup</div></div>
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
       <div class="settings-row" onclick="disconnectDropbox()">
         <div class="srow-icon" style="background:#FFEBEE">🔌</div>
         <div class="srow-info"><div class="srow-title" style="color:var(--red)">Disconnect</div></div>
@@ -1185,6 +1213,7 @@ function disconnectDropbox() {
 async function init() {
   await openDB();
   await handleDropboxCallback();
+  if (_dbx.isConnected() && getWardrobe().length === 0) await restoreFromDropbox();
   renderFilters();
   renderWardrobe();
   buildAddForm();
