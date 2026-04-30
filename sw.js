@@ -1,4 +1,4 @@
-const CACHE = 'style-v1';
+const CACHE = 'style-v3';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])));
