@@ -348,8 +348,8 @@ html,body{height:100%;background:var(--bg);color:var(--primary);font-family:-app
 
 <script>
 /* ===================== CONFIG ===================== */
-const GEMINI_KEY  = 'AIzaSyBmzJxad566i5epLJfL0aWg1N4prXgPQZ4';
-const GEMINI_URL  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_KEY}`;
+const _geminiKey  = () => localStorage.getItem('gemini_key') || '';
+const _geminiUrl  = () => `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${_geminiKey()}`;
 const REDIRECT_URI    = location.origin + location.pathname.replace(/\/?$/, '/');
 const DROPBOX_APP_KEY = '2zraey09dekbvln';
 
@@ -556,11 +556,12 @@ const uid          = () => Date.now().toString(36) + Math.random().toString(36).
 
 /* ===================== GEMINI API ===================== */
 async function callGemini(prompt, b64 = null, mime = 'image/jpeg') {
+  if (!_geminiKey()) throw new Error('NO_KEY');
   const parts = [{ text: prompt }];
   if (b64) parts.push({ inline_data: { mime_type: mime, data: b64 } });
   const body = JSON.stringify({ contents: [{ parts }] });
   for (let attempt = 0; attempt <= 3; attempt++) {
-    const r = await fetch(GEMINI_URL, {
+    const r = await fetch(_geminiUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body
@@ -931,6 +932,7 @@ async function runAiTag() {
     toast('Tagged!');
   } catch(err) {
     console.error('AI tag error:', err);
+    if (err.message === 'NO_KEY') { toast('Add your Gemini API key in Settings'); return; }
     toast(err.message?.includes('429') ? 'AI still busy — wait a minute and try again' : 'Tagging failed — try again');
   }
   finally {
@@ -1139,6 +1141,16 @@ function openSettings() {
       </div>`}
     </div>
     <div class="settings-section">
+      <div class="settings-label">AI (Gemini)</div>
+      <div style="padding:14px 16px">
+        <input id="gemini-key-input" type="password" placeholder="Paste Gemini API key"
+               value="${localStorage.getItem('gemini_key')||''}"
+               style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
+        <button class="btn btn-primary btn-full" onclick="saveGeminiKey()">Save Key</button>
+        <p style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;text-align:center">Get a free key at <b>aistudio.google.com</b> → Get API key. Your key is stored only on this device.</p>
+      </div>
+    </div>
+    <div class="settings-section">
       <div class="settings-label">Wardrobe</div>
       <div class="settings-row" onclick="exportData()">
         <div class="srow-icon" style="background:#EEF0FB">📤</div>
@@ -1208,6 +1220,14 @@ async function clearAll() {
 }
 
 /* ===================== INIT ===================== */
+function saveGeminiKey() {
+  const key = document.getElementById('gemini-key-input')?.value.trim();
+  if (!key) { toast('Paste your API key first'); return; }
+  localStorage.setItem('gemini_key', key);
+  document.getElementById('settings-overlay').classList.remove('open');
+  toast('Gemini API key saved');
+}
+
 function saveDbxKeyAndLogin() {
   const key = document.getElementById('dbx-key-input')?.value.trim();
   if (!key) { toast('Paste your App Key first'); return; }
