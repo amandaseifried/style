@@ -349,7 +349,7 @@ html,body{height:100%;background:var(--bg);color:var(--primary);font-family:-app
 <script>
 /* ===================== CONFIG ===================== */
 const _geminiKey  = () => localStorage.getItem('gemini_key') || '';
-const _geminiUrl  = () => `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${_geminiKey()}`;
+const _geminiUrl  = () => `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${_geminiKey()}`;
 const REDIRECT_URI    = location.origin + location.pathname.replace(/\/?$/, '/');
 const DROPBOX_APP_KEY = '2zraey09dekbvln';
 
@@ -1237,14 +1237,14 @@ async function testGeminiKey() {
   localStorage.setItem('gemini_key', key);
   toast('Testing key…');
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: 'Say "OK" and nothing else.' }] }] })
     });
     if (r.ok) { toast('Key works!'); }
-    else { const d = await r.json().catch(()=>({})); toast(`Key test failed: ${r.status} — ${d.error?.message || 'unknown'}`); }
+    else { const d = await r.json().catch(()=>({})); alert(`Key test failed (${r.status}):\n\n${d.error?.message || JSON.stringify(d)}`); }
   } catch(e) { toast('Connection error — check your internet'); }
 }
 
