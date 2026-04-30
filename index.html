@@ -1236,14 +1236,18 @@ async function testGeminiKey() {
   toast('Testing key…');
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: 'Say "OK" and nothing else.' }] }] })
+      body: JSON.stringify({ contents: [{ parts: [{ text: 'Say "OK" and nothing else.' }] }] }),
+      signal: controller.signal
     });
-    if (r.ok) { toast('Key works!'); }
+    clearTimeout(timeout);
+    if (r.ok) { toast('Key works! ✓'); }
     else { const d = await r.json().catch(()=>({})); alert(`Key test failed (${r.status}):\n\n${d.error?.message || JSON.stringify(d)}`); }
-  } catch(e) { toast('Connection error — check your internet'); }
+  } catch(e) { alert(e.name === 'AbortError' ? 'Request timed out — key may have Application restrictions blocking browser requests. Set to "None" in Google Cloud Console.' : `Connection error: ${e.message}`); }
 }
 
 function saveDbxKeyAndLogin() {
