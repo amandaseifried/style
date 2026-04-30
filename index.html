@@ -349,7 +349,7 @@ html,body{height:100%;background:var(--bg);color:var(--primary);font-family:-app
 <script>
 /* ===================== CONFIG ===================== */
 const _geminiKey  = () => localStorage.getItem('gemini_key') || '';
-const _geminiUrl  = () => `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${_geminiKey()}`;
+const _geminiUrl  = () => `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${_geminiKey()}`;
 const REDIRECT_URI    = location.origin + location.pathname.replace(/\/?$/, '/');
 const DROPBOX_APP_KEY = '2zraey09dekbvln';
 
@@ -1235,7 +1235,7 @@ async function testGeminiKey() {
   localStorage.setItem('gemini_key', key);
   toast('Testing key…');
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${key}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     const r = await fetch(url, {
