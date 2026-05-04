@@ -348,7 +348,7 @@ html,body{height:100%;background:var(--bg);color:var(--primary);font-family:-app
 
 <script>
 /* ===================== CONFIG ===================== */
-const _openaiKey  = () => localStorage.getItem('openai_key') || '';
+const _claudeKey  = () => localStorage.getItem('claude_key') || '';
 const REDIRECT_URI    = location.origin + location.pathname.replace(/\/?$/, '/');
 const DROPBOX_APP_KEY = '2zraey09dekbvln';
 
@@ -553,27 +553,32 @@ const addItem      = i  => { const w = getWardrobe(); w.unshift(i); saveWardrobe
 const deleteItem   = id => saveWardrobe(getWardrobe().filter(i => i.id !== id));
 const uid          = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
-/* ===================== OPENAI API ===================== */
-async function callOpenAI(prompt, b64 = null, mime = 'image/jpeg') {
-  if (!_openaiKey()) throw new Error('NO_KEY');
+/* ===================== CLAUDE API ===================== */
+async function callClaude(prompt, b64 = null, mime = 'image/jpeg') {
+  if (!_claudeKey()) throw new Error('NO_KEY');
   const content = b64
-    ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } }]
-    : prompt;
+    ? [{ type: 'image', source: { type: 'base64', media_type: mime, data: b64 } }, { type: 'text', text: prompt }]
+    : [{ type: 'text', text: prompt }];
   const body = JSON.stringify({
-    model: 'gpt-4o',
-    messages: [{ role: 'user', content }],
-    max_tokens: 600
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 600,
+    messages: [{ role: 'user', content }]
   });
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_openaiKey()}` },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': _claudeKey(),
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
     body
   });
   if (r.ok) {
     const d = await r.json();
-    return d.choices?.[0]?.message?.content || '';
+    return d.content?.[0]?.text || '';
   }
-  throw new Error(`OpenAI ${r.status}`);
+  throw new Error(`Claude ${r.status}`);
 }
 
 function parseJson(txt) {
@@ -598,7 +603,7 @@ async function scaleForAI(b64, mime) {
 
 async function aiTagItem(b64, mime) {
   const scaled = await scaleForAI(b64, mime);
-  const txt = await callOpenAI(
+  const txt = await callClaude(
     `Analyze this clothing item photo and return ONLY valid JSON (no markdown, no extra text):
 {
   "type": "descriptive item name e.g. Navy Blazer, White Linen Shirt, Midi Skirt, Chunky Knit Sweater",
@@ -613,7 +618,7 @@ async function aiTagItem(b64, mime) {
 
 async function aiOutfits(mood, wardrobe) {
   const list = wardrobe.map(i => `• ${i.type} (${(i.colors||[]).join('/')})`).join('\n');
-  const txt = await callOpenAI(
+  const txt = await callClaude(
     `My wardrobe:\n${list}\n\nSuggest 2-3 complete outfits for: "${mood}"\nUse ONLY items from the list above.\n\nReturn ONLY valid JSON array (no markdown):\n[{"name":"outfit name","items":["exact item from list"],"why":"why this works"}]`
   );
   return parseJson(txt);
@@ -621,7 +626,7 @@ async function aiOutfits(mood, wardrobe) {
 
 async function aiShopAnalysis(b64, mime, wardrobe) {
   const list = wardrobe.map(i => `• ${i.type} (${(i.colors||[]).join('/')})`).join('\n') || '(empty wardrobe)';
-  const txt = await callOpenAI(
+  const txt = await callClaude(
     `My wardrobe:\n${list}\n\nAnalyze whether I should buy the item in this photo.\n\nReturn ONLY valid JSON (no markdown):\n{"verdict":"great match|similar exists|fills a gap|doesn't fit style","item_description":"brief description of the item","recommendation":"2-3 sentences of shopping advice","pairs_with":["items from my wardrobe"],"similar_items":["similar items I already own"]}`,
     b64, mime
   );
@@ -927,7 +932,7 @@ async function runAiTag() {
     toast('Tagged!');
   } catch(err) {
     console.error('AI tag error:', err);
-    if (err.message === 'NO_KEY') { toast('Add your OpenAI API key in Settings'); return; }
+    if (err.message === 'NO_KEY') { toast('Add your Claude API key in Settings'); return; }
     toast(err.message?.includes('429') ? 'AI busy — wait a moment and try again' : 'Tagging failed — try again');
   }
   finally {
@@ -1136,16 +1141,16 @@ function openSettings() {
       </div>`}
     </div>
     <div class="settings-section">
-      <div class="settings-label">AI (OpenAI)</div>
+      <div class="settings-label">AI (Claude)</div>
       <div style="padding:14px 16px">
-        <input id="openai-key-input" type="password" placeholder="Paste OpenAI API key"
-               value="${localStorage.getItem('openai_key')||''}"
+        <input id="claude-key-input" type="password" placeholder="Paste Anthropic API key"
+               value="${localStorage.getItem('claude_key')||''}"
                style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
         <div style="display:flex;gap:8px;margin-bottom:10px">
-          <button class="btn btn-primary" style="flex:1" onclick="saveOpenAIKey()">Save Key</button>
-          <button class="btn" style="flex:1;background:var(--surface);border:1px solid var(--border)" onclick="testOpenAIKey()">Test Key</button>
+          <button class="btn btn-primary" style="flex:1" onclick="saveClaudeKey()">Save Key</button>
+          <button class="btn" style="flex:1;background:var(--surface);border:1px solid var(--border)" onclick="testClaudeKey()">Test Key</button>
         </div>
-        <p style="font-size:12px;color:var(--muted);margin-top:0;line-height:1.6;text-align:center">Get a key at <b>platform.openai.com</b> → API keys. Your key is stored only on this device.</p>
+        <p style="font-size:12px;color:var(--muted);margin-top:0;line-height:1.6;text-align:center">Get a key at <b>console.anthropic.com</b> → API keys. Your key is stored only on this device.</p>
       </div>
     </div>
     <div class="settings-section">
@@ -1218,26 +1223,31 @@ async function clearAll() {
 }
 
 /* ===================== INIT ===================== */
-function saveOpenAIKey() {
-  const key = document.getElementById('openai-key-input')?.value.trim();
+function saveClaudeKey() {
+  const key = document.getElementById('claude-key-input')?.value.trim();
   if (!key) { toast('Paste your API key first'); return; }
-  localStorage.setItem('openai_key', key);
+  localStorage.setItem('claude_key', key);
   document.getElementById('settings-overlay').classList.remove('open');
-  toast('OpenAI API key saved');
+  toast('Claude API key saved');
 }
 
-async function testOpenAIKey() {
-  const key = document.getElementById('openai-key-input')?.value.trim();
+async function testClaudeKey() {
+  const key = document.getElementById('claude-key-input')?.value.trim();
   if (!key) { toast('Paste your API key first'); return; }
-  localStorage.setItem('openai_key', key);
+  localStorage.setItem('claude_key', key);
   toast('Testing key…');
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-      body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: 'Say "OK" and nothing else.' }], max_tokens: 5 }),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 5, messages: [{ role: 'user', content: 'Say "OK".' }] }),
       signal: controller.signal
     });
     clearTimeout(timeout);
